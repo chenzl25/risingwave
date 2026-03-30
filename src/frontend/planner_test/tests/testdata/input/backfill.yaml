@@ -138,6 +138,13 @@
     select * from t where a = 1 and b > 5;
   expected_outputs:
     - stream_plan
+- name: snapshot backfill chooses desc index for predicate range
+  sql: |
+    create table t(a int, b int, c int, primary key(a));
+    create index idx_bc_desc on t(b, c desc) include(a);
+    select * from t where b = 2 and c > 5;
+  expected_outputs:
+    - stream_plan
 - name: |
     Test backfill order, auto, stream share cycle.
     For auto derived backfill order with cycle, it should not return any order plan, and return a NOTICE

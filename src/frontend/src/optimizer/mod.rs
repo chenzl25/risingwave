@@ -68,8 +68,8 @@ use self::heuristic_optimizer::ApplyOrder;
 use self::plan_node::generic::{self, PhysicalPlanRef};
 use self::plan_node::{
     BatchProject, LogicalProject, LogicalSource, PartitionComputeInfo, StreamDml,
-    StreamMaterialize, StreamProject, StreamRowIdGen, StreamSink, StreamWatermarkFilter,
-    ToStreamContext, stream_enforce_eowc_requirement,
+    RewriteStreamContext, StreamMaterialize, StreamProject, StreamRowIdGen, StreamSink,
+    StreamWatermarkFilter, ToStreamContext, stream_enforce_eowc_requirement,
 };
 #[cfg(debug_assertions)]
 use self::plan_visitor::InputRefValidator;
@@ -674,9 +674,11 @@ impl LogicalPlanRoot {
                 }
                 let mut optimized_plan = self.gen_optimized_logical_plan_for_stream()?;
                 let (plan, out_col_change) = {
+                    let mut rewrite_ctx =
+                        RewriteStreamContext::new_with_backfill_type(backfill_type);
                     let (plan, out_col_change) = optimized_plan
                         .plan
-                        .logical_rewrite_for_stream(&mut Default::default())?;
+                        .logical_rewrite_for_stream(&mut rewrite_ctx)?;
                     if out_col_change.is_injective() {
                         (plan, out_col_change)
                     } else {

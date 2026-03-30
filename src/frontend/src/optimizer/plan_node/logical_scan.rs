@@ -667,8 +667,27 @@ impl ToStream for LogicalScan {
 
     fn logical_rewrite_for_stream(
         &self,
-        _ctx: &mut RewriteStreamContext,
+        ctx: &mut RewriteStreamContext,
     ) -> Result<(PlanRef, ColIndexMapping)> {
+        if ctx.backfill_type() == BackfillType::SnapshotBackfill {
+            let new = self.clone_with_predicate(self.predicate().clone());
+            if !new.table_indexes().is_empty()
+                && self
+                    .base
+                    .ctx()
+                    .session_ctx()
+                    .config()
+                    .enable_index_selection()
+            {
+                let index_selection_rule = IndexSelectionRule::create();
+                if let ApplyResult::Ok(applied) = index_selection_rule.apply(new.clone().into())
+                    && let Some(index_scan) = applied.as_logical_scan()
+                {
+                    return index_scan.logical_rewrite_for_stream(ctx);
+                }
+            }
+        }
+
         match self.base.stream_key().is_none() {
             true => {
                 let mut output_col_idx = self.output_col_idx().clone();

@@ -186,6 +186,9 @@ flush;
 statement ok
 CREATE MATERIALIZED VIEW mv_idx_desc AS SELECT * FROM idx_bc_desc WHERE b = 1 AND c > 5;
 
+statement ok
+CREATE MATERIALIZED VIEW mv_base_auto_idx AS SELECT * FROM t_idx WHERE b = 1 AND c > 5;
+
 query III rowsort
 SELECT * FROM mv_idx_desc;
 ----
@@ -198,6 +201,14 @@ SELECT * FROM mv_idx_desc EXCEPT SELECT b, c, a FROM t_idx WHERE b = 1 AND c > 5
 
 query T
 SELECT b, c, a FROM t_idx WHERE b = 1 AND c > 5 EXCEPT SELECT * FROM mv_idx_desc;
+----
+
+query T
+SELECT * FROM mv_base_auto_idx EXCEPT SELECT * FROM t_idx WHERE b = 1 AND c > 5;
+----
+
+query T
+SELECT * FROM t_idx WHERE b = 1 AND c > 5 EXCEPT SELECT * FROM mv_base_auto_idx;
 ----
 
 # ---- Test 7: DESC index with two-sided range ----
@@ -238,6 +249,14 @@ SELECT b, c, a FROM t_idx WHERE b = 1 AND c > 5 EXCEPT SELECT * FROM mv_idx_desc
 ----
 
 query T
+SELECT * FROM mv_base_auto_idx EXCEPT SELECT * FROM t_idx WHERE b = 1 AND c > 5;
+----
+
+query T
+SELECT * FROM t_idx WHERE b = 1 AND c > 5 EXCEPT SELECT * FROM mv_base_auto_idx;
+----
+
+query T
 SELECT * FROM mv_idx_desc_range EXCEPT SELECT b, c, a FROM t_idx WHERE b = 2 AND c >= 4 AND c <= 8;
 ----
 
@@ -250,6 +269,9 @@ DROP MATERIALIZED VIEW mv_idx_desc;
 
 statement ok
 DROP MATERIALIZED VIEW mv_idx_desc_range;
+
+statement ok
+DROP MATERIALIZED VIEW mv_base_auto_idx;
 
 statement ok
 DROP TABLE t_idx cascade;
