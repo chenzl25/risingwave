@@ -105,6 +105,7 @@ pub async fn handle_parse(
     match &statement {
         Statement::Query(_)
         | Statement::Insert { .. }
+        | Statement::Merge { .. }
         | Statement::Delete { .. }
         | Statement::Update { .. } => {
             query::handle_parse_for_batch(handler_args, statement, specified_param_types)

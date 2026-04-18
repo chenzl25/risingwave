@@ -1944,6 +1944,7 @@ fn infer(bound: Option<BoundStatement>, stmt: Statement) -> Result<Vec<PgFieldDe
     match stmt {
         Statement::Query(_)
         | Statement::Insert { .. }
+        | Statement::Merge { .. }
         | Statement::Delete { .. }
         | Statement::Update { .. }
         | Statement::FetchCursor { .. } => Ok(bound

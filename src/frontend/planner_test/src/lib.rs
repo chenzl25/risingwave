@@ -408,6 +408,7 @@ impl TestCase {
             match stmt.clone() {
                 Statement::Query(_)
                 | Statement::Insert { .. }
+                | Statement::Merge { .. }
                 | Statement::Delete { .. }
                 | Statement::Update { .. } => {
                     if result.is_some() {

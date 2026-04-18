@@ -313,6 +313,7 @@ impl Parser<'_> {
                 Keyword::DROP => Ok(self.parse_drop()?),
                 Keyword::DELETE => Ok(self.parse_delete()?),
                 Keyword::INSERT => Ok(self.parse_insert()?),
+                Keyword::MERGE => Ok(self.parse_merge()?),
                 Keyword::UPDATE => Ok(self.parse_update()?),
                 Keyword::ALTER => Ok(self.parse_alter()?),
                 Keyword::COPY => Ok(self.parse_copy()?),
@@ -5906,6 +5907,73 @@ impl Parser<'_> {
             columns,
             source,
             returning,
+        })
+    }
+
+    pub fn parse_merge(&mut self) -> ModalResult<Statement> {
+        self.expect_keyword(Keyword::INTO)?;
+
+        let table_name = self.parse_object_name()?;
+        let table_alias = self.parse_optional_table_alias(keywords::RESERVED_FOR_TABLE_ALIAS)?;
+
+        self.expect_keyword(Keyword::USING)?;
+        let source = self.parse_table_factor()?;
+
+        self.expect_keyword(Keyword::ON)?;
+        let on = self.parse_expr()?;
+
+        let mut clauses = Vec::new();
+        while self.parse_keyword(Keyword::WHEN) {
+            let kind = if self.parse_keyword(Keyword::MATCHED) {
+                MergeClauseKind::Matched
+            } else if self.parse_keywords(&[Keyword::NOT, Keyword::MATCHED]) {
+                MergeClauseKind::NotMatched
+            } else {
+                return self.expected("MATCHED or NOT MATCHED after WHEN");
+            };
+
+            let condition = if self.parse_keyword(Keyword::AND) {
+                Some(self.parse_expr()?)
+            } else {
+                None
+            };
+
+            self.expect_keyword(Keyword::THEN)?;
+            let action = if self.parse_keyword(Keyword::UPDATE) {
+                self.expect_keyword(Keyword::SET)?;
+                MergeAction::Update {
+                    assignments: self.parse_comma_separated(Parser::parse_assignment)?,
+                }
+            } else if self.parse_keyword(Keyword::DELETE) {
+                MergeAction::Delete
+            } else if self.parse_keyword(Keyword::INSERT) {
+                let columns = self.parse_parenthesized_column_list(Optional)?;
+                self.expect_keyword(Keyword::VALUES)?;
+                self.expect_token(&Token::LParen)?;
+                let values = self.parse_comma_separated(Parser::parse_expr)?;
+                self.expect_token(&Token::RParen)?;
+                MergeAction::Insert { columns, values }
+            } else {
+                return self.expected("UPDATE, DELETE, or INSERT after THEN");
+            };
+
+            clauses.push(MergeClause {
+                kind,
+                condition,
+                action,
+            });
+        }
+
+        if clauses.is_empty() {
+            return self.expected("at least one WHEN clause in MERGE");
+        }
+
+        Ok(Statement::Merge {
+            table_name,
+            table_alias,
+            source,
+            on,
+            clauses,
         })
     }
 

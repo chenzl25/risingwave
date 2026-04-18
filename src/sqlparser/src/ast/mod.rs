@@ -1284,6 +1284,19 @@ pub enum Statement {
         /// Define output of this insert statement
         returning: Vec<SelectItem>,
     },
+    /// MERGE INTO
+    Merge {
+        /// TARGET TABLE
+        table_name: ObjectName,
+        /// Optional alias of target table
+        table_alias: Option<TableAlias>,
+        /// USING source
+        source: TableFactor,
+        /// ON match condition
+        on: Expr,
+        /// WHEN clauses
+        clauses: Vec<MergeClause>,
+    },
     Copy {
         entity: CopyEntity,
         target: CopyTarget,
@@ -1862,6 +1875,23 @@ impl Statement {
                 write!(f, "{}", source)?;
                 if !returning.is_empty() {
                     write!(f, " RETURNING ({})", display_comma_separated(returning))?;
+                }
+                Ok(())
+            }
+            Statement::Merge {
+                table_name,
+                table_alias,
+                source,
+                on,
+                clauses,
+            } => {
+                write!(f, "MERGE INTO {}", table_name)?;
+                if let Some(alias) = table_alias {
+                    write!(f, " AS {}", alias)?;
+                }
+                write!(f, " USING {} ON {}", source, on)?;
+                for clause in clauses {
+                    write!(f, " {}", clause)?;
                 }
                 Ok(())
             }
@@ -2646,6 +2676,68 @@ pub enum Action {
     Truncate,
     Update { columns: Option<Vec<Ident>> },
     Usage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MergeClauseKind {
+    Matched,
+    NotMatched,
+}
+
+impl fmt::Display for MergeClauseKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MergeClauseKind::Matched => f.write_str("MATCHED"),
+            MergeClauseKind::NotMatched => f.write_str("NOT MATCHED"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MergeClause {
+    pub kind: MergeClauseKind,
+    pub condition: Option<Expr>,
+    pub action: MergeAction,
+}
+
+impl fmt::Display for MergeClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WHEN {}", self.kind)?;
+        if let Some(condition) = &self.condition {
+            write!(f, " AND {}", condition)?;
+        }
+        write!(f, " THEN {}", self.action)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MergeAction {
+    Update {
+        assignments: Vec<Assignment>,
+    },
+    Delete,
+    Insert {
+        columns: Vec<Ident>,
+        values: Vec<Expr>,
+    },
+}
+
+impl fmt::Display for MergeAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MergeAction::Update { assignments } => {
+                write!(f, "UPDATE SET {}", display_comma_separated(assignments))
+            }
+            MergeAction::Delete => f.write_str("DELETE"),
+            MergeAction::Insert { columns, values } => {
+                f.write_str("INSERT")?;
+                if !columns.is_empty() {
+                    write!(f, " ({})", display_comma_separated(columns))?;
+                }
+                write!(f, " VALUES ({})", display_comma_separated(values))
+            }
+        }
+    }
 }
 
 impl fmt::Display for Action {

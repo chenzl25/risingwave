@@ -228,6 +228,7 @@ pub async fn do_handle_explain(
 
                     // -- Batch Queries --
                     Statement::Insert { .. }
+                    | Statement::Merge { .. }
                     | Statement::Delete { .. }
                     | Statement::Update { .. }
                     | Statement::Query { .. } => {

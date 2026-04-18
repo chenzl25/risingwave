@@ -160,6 +160,7 @@ pub async fn handle_execute(
     match statement {
         Statement::Query(_)
         | Statement::Insert { .. }
+        | Statement::Merge { .. }
         | Statement::Delete { .. }
         | Statement::Update { .. } => {
             // Execute a batch query

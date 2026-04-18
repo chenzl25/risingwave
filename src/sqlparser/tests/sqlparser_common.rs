@@ -140,6 +140,36 @@ fn parse_update() {
 }
 
 #[test]
+fn parse_merge_into() {
+    let sql = "MERGE INTO target_table AS t USING source_table AS s ON t.id = s.id \
+        WHEN MATCHED AND s.deleted THEN DELETE \
+        WHEN MATCHED THEN UPDATE SET v = s.v \
+        WHEN NOT MATCHED THEN INSERT (id, v) VALUES (s.id, s.v)";
+    match verified_stmt(sql) {
+        Statement::Merge {
+            table_name,
+            table_alias,
+            source,
+            on,
+            clauses,
+        } => {
+            assert_eq!(table_name.to_string(), "target_table");
+            assert_eq!(table_alias.unwrap().name.real_value(), "t");
+            assert_eq!(source.to_string(), "source_table AS s");
+            assert_eq!(on.to_string(), "t.id = s.id");
+            assert_eq!(clauses.len(), 3);
+            assert_eq!(clauses[0].kind, MergeClauseKind::Matched);
+            assert_eq!(clauses[1].kind, MergeClauseKind::Matched);
+            assert_eq!(clauses[2].kind, MergeClauseKind::NotMatched);
+            assert!(matches!(clauses[0].action, MergeAction::Delete));
+            assert!(matches!(clauses[1].action, MergeAction::Update { .. }));
+            assert!(matches!(clauses[2].action, MergeAction::Insert { .. }));
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
 fn parse_invalid_table_name() {
     let ast = run_parser_method("db.public..customer", |parser| parser.parse_object_name());
     assert!(ast.is_err());

@@ -617,6 +617,7 @@ pub async fn handle(
         }
         Statement::Query(_)
         | Statement::Insert { .. }
+        | Statement::Merge { .. }
         | Statement::Delete { .. }
         | Statement::Update { .. } => query::handle_query(handler_args, stmt, formats).await,
         Statement::Copy {

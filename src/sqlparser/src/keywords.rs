@@ -314,6 +314,7 @@ define_keywords!(
     LOWER,
     MAP,
     MATCH,
+    MATCHED,
     MATERIALIZED,
     MAX,
     MEMBER,

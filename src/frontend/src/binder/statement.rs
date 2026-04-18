@@ -95,6 +95,10 @@ impl Binder {
                     .into(),
             )),
 
+            Statement::Merge { .. } => {
+                bail_not_implemented!("MERGE INTO is not supported yet")
+            }
+
             Statement::Query(q) => Ok(BoundStatement::Query(self.bind_query(&q)?.into())),
 
             Statement::DeclareCursor { stmt } => match stmt.declare_cursor {
