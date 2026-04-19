@@ -19,6 +19,7 @@ use risingwave_sqlparser::ast::{DeclareCursor, Statement};
 use super::declare_cursor::{BoundDeclareCursor, BoundDeclareSubscriptionCursor};
 use super::delete::BoundDelete;
 use super::fetch_cursor::BoundFetchCursor;
+use super::merge::BoundMerge;
 use super::update::BoundUpdate;
 use crate::binder::create_view::BoundCreateView;
 use crate::binder::{Binder, BoundInsert, BoundQuery};
@@ -30,6 +31,7 @@ pub enum BoundStatement {
     Insert(Box<BoundInsert>),
     Delete(Box<BoundDelete>),
     Update(Box<BoundUpdate>),
+    Merge(Box<BoundMerge>),
     Query(Box<BoundQuery>),
     DeclareCursor(Box<BoundDeclareCursor>),
     DeclareSubscriptionCursor(Box<BoundDeclareSubscriptionCursor>),
@@ -52,6 +54,7 @@ impl BoundStatement {
                 .returning_schema
                 .as_ref()
                 .map_or(vec![], |s| s.fields().into()),
+            BoundStatement::Merge(_) => vec![],
             BoundStatement::Query(q) => q.schema().fields().into(),
             BoundStatement::DeclareCursor(_) => vec![],
             BoundStatement::DeclareSubscriptionCursor(_) => vec![],
@@ -95,9 +98,16 @@ impl Binder {
                     .into(),
             )),
 
-            Statement::Merge { .. } => {
-                bail_not_implemented!("MERGE INTO is not supported yet")
-            }
+            Statement::Merge {
+                table_name,
+                table_alias,
+                source,
+                on,
+                clauses,
+            } => Ok(BoundStatement::Merge(
+                self.bind_merge(table_name, table_alias, source, on, clauses)?
+                    .into(),
+            )),
 
             Statement::Query(q) => Ok(BoundStatement::Query(self.bind_query(&q)?.into())),
 
@@ -164,6 +174,7 @@ impl RewriteExprsRecursive for BoundStatement {
             BoundStatement::Insert(inner) => inner.rewrite_exprs_recursive(rewriter),
             BoundStatement::Delete(inner) => inner.rewrite_exprs_recursive(rewriter),
             BoundStatement::Update(inner) => inner.rewrite_exprs_recursive(rewriter),
+            BoundStatement::Merge(inner) => inner.rewrite_exprs_recursive(rewriter),
             BoundStatement::Query(inner) => inner.rewrite_exprs_recursive(rewriter),
             BoundStatement::DeclareCursor(inner) => inner.rewrite_exprs_recursive(rewriter),
             BoundStatement::FetchCursor(_) => {}

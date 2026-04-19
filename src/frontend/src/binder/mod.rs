@@ -36,6 +36,7 @@ pub mod fetch_cursor;
 mod for_system;
 mod gap_fill_binder;
 mod insert;
+mod merge;
 mod query;
 mod relation;
 mod select;

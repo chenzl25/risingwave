@@ -32,6 +32,7 @@ pub trait ValuesStream = Stream<Item = RowSetResult> + Unpin + Send;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[expect(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum StatementType {
+    MERGE,
     INSERT,
     INSERT_RETURNING,
     DELETE,
@@ -254,6 +255,7 @@ impl StatementType {
     pub fn infer_from_statement(stmt: &Statement) -> Result<Self, String> {
         match stmt {
             Statement::Query(_) => Ok(StatementType::SELECT),
+            Statement::Merge { .. } => Ok(StatementType::MERGE),
             Statement::Insert { returning, .. } => {
                 if returning.is_empty() {
                     Ok(StatementType::INSERT)
@@ -347,7 +349,8 @@ impl StatementType {
     pub fn is_command(&self) -> bool {
         matches!(
             self,
-            StatementType::INSERT
+            StatementType::MERGE
+                | StatementType::INSERT
                 | StatementType::DELETE
                 | StatementType::UPDATE
                 | StatementType::MOVE
@@ -363,7 +366,8 @@ impl StatementType {
     pub fn is_dml(&self) -> bool {
         matches!(
             self,
-            StatementType::INSERT
+            StatementType::MERGE
+                | StatementType::INSERT
                 | StatementType::DELETE
                 | StatementType::UPDATE
                 | StatementType::INSERT_RETURNING

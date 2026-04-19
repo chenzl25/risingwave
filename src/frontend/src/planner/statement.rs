@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use risingwave_common::bail_not_implemented;
+
 use crate::binder::BoundStatement;
 use crate::error::Result;
 use crate::optimizer::LogicalPlanRoot;
@@ -23,6 +25,9 @@ impl Planner {
             BoundStatement::Insert(i) => self.plan_insert(*i),
             BoundStatement::Delete(d) => self.plan_delete(*d),
             BoundStatement::Update(u) => self.plan_update(*u),
+            BoundStatement::Merge(_) => {
+                bail_not_implemented!("MERGE INTO planner is not implemented yet")
+            }
             BoundStatement::Query(q) => self.plan_query(*q),
             BoundStatement::DeclareCursor(d) => self.plan_query(*d.query),
             BoundStatement::DeclareSubscriptionCursor(_) => unimplemented!(),
